@@ -2,13 +2,15 @@ language: c
 
 compiler: gcc
 
-script: cmake -DWITH_DLT_TESTS=ON -DWITH_TESTSCRIPTS=ON -DWITH_DLT_UNIT_TESTS=ON -DWITH_SYSTEMD=ON -DWITH_SYSTEMD_JOURNAL=ON CMakeLists.txt && make && ./src/tests/dlt-test-user
+script: cmake -DWITH_DLT_TESTS=ON -DWITH_TESTSCRIPTS=ON -DWITH_DLT_UNIT_TESTS=ON -DWITH_SYSTEMD=ON -DWITH_SYSTEMD_JOURNAL=ON -DWITH_DOC=ON CMakeLists.txt && make && ./src/tests/dlt-test-user
 
 addons:
   apt:
     packages:
+      - asciidoc
       - cmake-data
       - cmake
+      - doxygen
       - libdbus-1-dev
       - build-essential
       - systemd
