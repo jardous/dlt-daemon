@@ -56,6 +56,7 @@
 #ifdef linux
 #   include <sys/inotify.h>
 #endif
+#include <sys/stat.h>
 #include <libgen.h>
 #include <dirent.h>
 #include <zlib.h>
@@ -672,7 +673,7 @@ int init_filetransfer_dirs(FiletransferOptions const *opts)
 
 #ifdef linux
         ino.fd[i] = inotify_add_watch(ino.handle, opts->Directory[i],
-                                      IN_CLOSE_WRITE | IN_MOVED_TO);
+                                      IN_CLOSE_WRITE | IN_MOVED_TO | IN_CREATE);
 
         if (ino.fd[i] < 0) {
             char buf[1024];
@@ -711,7 +712,7 @@ int wait_for_files(FiletransferOptions const *opts)
         struct inotify_event *ie = (struct inotify_event *)&buf[i];
 
         if (ie->len > 0) {
-            if ((ie->mask & IN_CLOSE_WRITE) || (ie->mask & IN_MOVED_TO)) {
+            if ((ie->mask & IN_CLOSE_WRITE) || (ie->mask & IN_MOVED_TO) || (ie->mask & IN_CREATE)) {
                 int j;
 
                 for (j = 0; j < opts->Count; j++)
@@ -733,7 +734,22 @@ int wait_for_files(FiletransferOptions const *opts)
 
                         char *tosend = malloc(length);
                         snprintf(tosend, length, "%s/%s", opts->Directory[j], ie->name);
+
+                        if (stat(tosend, &s) < 0) {
+                            DLT_LOG(dltsystem,
+                                    DLT_LOG_DEBUG,
+                                    DLT_STRING("dlt-system-filetransfer: Cannot stat file "),
+                                    DLT_STRING(tosend));
+                        } else {
+                            /* If the event is IN_CREATE and the file is not a symlink we ignore it and wait for IN_CLOSE_WRITE event */
+                            if ((ie->mask & IN_CREATE) && !S_ISLNK(s.st_mode)) {
+                                free(tosend);
+                                continue;
+                            }
+                        }
+
                         send_one(tosend, opts, j);
+
                         free(tosend);
                     }
             }
